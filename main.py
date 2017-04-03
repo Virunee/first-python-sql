@@ -1,6 +1,7 @@
 from database.mysql import MySQLDatabase
 from settings import db_config
 
+
 """
 Retrieve the settings from the
 `db_config` dictionary to connect to
@@ -15,9 +16,7 @@ db = MySQLDatabase(db_config.get('db_name'),
 # Get all the available tables for
 # our database and print them out.
 tables = db.get_available_tables()
-orders = db.get_all_orders()
 print tables
-print orders
 
 # Get all the available columns for our
 # articles table and print them out
@@ -26,29 +25,39 @@ print columns
 
 # Get all the records from
 # the people table
-all_records = db.select('people')
-print "All records: %s" % str(all_records)
+results = db.select('people')
 
-# Get all of the records from
-# the people table but only the
-# `id` and `first_name` columns
-column_specific_records = db.select('people', ['id', 'first_name'])
-print "Column specific records: %s" % str(column_specific_records)
+for row in results:
+    print row
 
-# Select data using the WHERE clause
-where_expression_records = db.select('people', ['first_name'],
-                                     where="first_name='John'")
-print "Where Records: %s" % str(where_expression_records)
 
-# Select data using the WHERE clause and
-# the JOIN clause
-joined_records = db.select('people', ['first_name'],
-                           where="people.id=3",
-                           join="orders ON people.id=orders.person_id")
-print "Joined records: %s" % str(joined_records)
+# Selecting columns with named tuples
+results = db.select('people',
+                    columns=['id', 'first_name'], named_tuples=True)
 
-# Delete a record from the database
-db.delete('orders', id="=3")
+for row in results:
+    print row.id, row.first_name
 
-# We can also use multiple WHERE clauses!
-db.delete('orders', id=">4", amount=">1")
+# We can also do more complex queries using `CONCAT`
+# and `SUM`
+people = db.select('people', columns=["CONCAT(first_name, ' ', second_name)"
+                                      " AS full_name", "SUM(amount)"
+                                      " AS total_spend"],
+                   named_tuples=True, where="people.id=1",
+                   join="orders ON people.id=orders.person_id")
+
+for person in people:
+    print person.full_name, "spent ", person.total_spend
+
+# Inserting an order
+db.insert('orders', person_id="2", amount="120.00")
+
+# Updating a person
+person = db.select('people', named_tuples=True)[0]
+
+db.update('profiles', where="person_id=%s" % person.id,
+          address="1a another street")
+
+# Deleting a record
+person = db.select('people', named_tuples=True)[0]
+db.delete('orders', person_id="=%s" % person.id, id="=1")
